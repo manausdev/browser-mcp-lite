@@ -1,0 +1,54 @@
+{
+  "name": "browser-mcp-lite",
+  "version": "0.1.0",
+  "description": "Zero-dependency MCP server that drives Chrome over raw CDP — no browser extension required.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "bml": "bin/bml.mjs"
+  },
+  "main": "server/mcp.js",
+  "exports": {
+    ".": "./server/mcp.js",
+    "./server/token.js": "./server/token.js",
+    "./server/bridge.js": "./server/bridge.js",
+    "./server/tools.js": "./server/tools.js",
+    "./core/*": "./core/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "core",
+    "scripts",
+    "server",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test --test-reporter=spec",
+    "test:e2e": "node scripts/e2e.mjs",
+    "start": "node server/bridge.js",
+    "mcp": "node server/mcp.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cdp",
+    "chrome-devtools-protocol",
+    "browser",
+    "automation",
+    "accessibility",
+    "zero-dependency"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lu4nn3ry/browser-mcp-lite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lu4nn3ry/browser-mcp-lite/issues"
+  },
+  "homepage": "https://github.com/lu4nn3ry/browser-mcp-lite#readme"
+}
