@@ -103,8 +103,7 @@ export async function launchChrome({ headless = true, width = 1440, height = 900
     child,
     async close() {
       if (!child.killed) {
-        child.kill('SIGKILL');
-        await new Promise((resolve) => child.once('exit', resolve));
+        await killTree(child);
       }
       try {
         rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
@@ -114,4 +113,34 @@ export async function launchChrome({ headless = true, width = 1440, height = 900
     },
   };
   return handle;
+}
+
+async function killTree(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+
+  if (process.platform === 'win32') {
+    await new Promise((resolve) => {
+      const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      killer.once('error', () => {
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          void 0;
+        }
+        resolve();
+      });
+      killer.once('exit', resolve);
+    });
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+  await new Promise((resolve) => child.once('exit', resolve));
 }
