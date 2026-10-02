@@ -5,8 +5,8 @@ Drive a real Chrome from an AI agent over the [Model Context Protocol](https://m
 The browser is launched headless, driven through the [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/), and torn down when the session ends. If Chrome is not installed the tools say so; if it is, nothing needs to be installed into your browser profile.
 
 ```bash
-npx browser-mcp-lite doctor      # check Node, Chrome and the auth token
-npx browser-mcp-lite audit https://example.com --widths=390,768,1440
+npx -y github:lu4nn3ry/browser-mcp-lite doctor      # check Node, Chrome and the auth token
+npx -y github:lu4nn3ry/browser-mcp-lite audit https://example.com --widths=390,768,1440
 ```
 
 ---
@@ -34,11 +34,11 @@ Both are available as MCP tools (`audit_page`) and as a CLI that exits non-zero,
 ## Install
 
 ```bash
-npm install -g browser-mcp-lite      # CLI on your PATH
-npm install browser-mcp-lite         # or as a project dependency
+npm install -g lu4nn3ry/browser-mcp-lite      # CLI (bml) on your PATH
+npm install lu4nn3ry/browser-mcp-lite         # or as a project dependency
 ```
 
-Nothing else. There is no lockfile-sized dependency tree because there are no dependencies.
+Nothing else. There is no lockfile-sized dependency tree because there are no dependencies. The package is not on npm — the `browser-mcp-lite` name there belongs to an unrelated project — so both commands install straight from the GitHub repo.
 
 ## Wire it into an MCP client
 
@@ -51,7 +51,7 @@ Nothing else. There is no lockfile-sized dependency tree because there are no de
   "mcp": {
     "browser": {
       "type": "local",
-      "command": ["npx", "-y", "browser-mcp-lite", "mcp"],
+      "command": ["npx", "-y", "github:lu4nn3ry/browser-mcp-lite", "mcp"],
       "enabled": true
     }
   }
@@ -65,7 +65,7 @@ Nothing else. There is no lockfile-sized dependency tree because there are no de
   "mcpServers": {
     "browser": {
       "command": "npx",
-      "args": ["-y", "browser-mcp-lite", "mcp"]
+      "args": ["-y", "github:lu4nn3ry/browser-mcp-lite", "mcp"]
     }
   }
 }
@@ -79,7 +79,7 @@ Nothing else. There is no lockfile-sized dependency tree because there are no de
     "browser": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "browser-mcp-lite", "mcp"]
+      "args": ["-y", "github:lu4nn3ry/browser-mcp-lite", "mcp"]
     }
   }
 }
@@ -102,7 +102,7 @@ curl http://127.0.0.1:12307/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-The token is generated on first run and stored at `~/.browser-mcp-secrets.json` with `0600` permissions (or `~/.browser-mcp-secrets.token`). `loadToken()` from `browser-mcp-lite/server/token.js` returns it for clients that need to authenticate themselves. `GET /health` is open and lists the tools without touching the browser.
+The token is generated on first run and stored at `~/.browser-mcp-secrets.json` with `0600` permissions (or `~/.browser-mcp-secrets.token`). `bml token` prints it; `loadToken()` from `browser-mcp-lite/server/token.js` returns it for clients that need to authenticate themselves. `GET /health` is open and lists the tools without touching the browser.
 
 The bridge binds to `127.0.0.1` and refuses requests without a valid token. `BML_INSECURE=1` disables the check for local debugging only.
 
@@ -121,7 +121,7 @@ The bridge binds to `127.0.0.1` and refuses requests without a valid token. `BML
 | `scroll_page` | Wheel delta, jump to top/bottom, or scroll a selector into view |
 | `screenshot` | PNG/JPEG, full page or clipped to a selector |
 | `inject_script` | Evaluate JS, return the JSON result |
-| `audit_page` | Overflow + WCAG AA contrast, optional highlighted screenshot |
+| `audit_page` | Overflow + WCAG AA contrast, optional geometry check and highlighted screenshot |
 
 `read_page` is the important one. It returns landmarks, headings, links and controls as a compact outline instead of a wall of HTML, and stamps each node with a ref:
 
@@ -145,6 +145,7 @@ Refs are re-generated on every `read_page`, so always re-read after navigating. 
 ```bash
 bml doctor                                    # environment check
 bml tools                                     # the tool catalogue as JSON
+bml token                                     # print the bridge bearer token
 bml shot https://example.com out.png --full --color-scheme=dark
 bml audit https://example.com --widths=390,768,1440 --json=report.json
 ```
@@ -152,7 +153,7 @@ bml audit https://example.com --widths=390,768,1440 --json=report.json
 `bml audit` prints one line per URL × width and exits `1` on any failure, which makes it a CI step:
 
 ```yaml
-- run: npx browser-mcp-lite audit https://example.com --widths=390,768,1440
+- run: npx -y github:lu4nn3ry/browser-mcp-lite audit https://example.com --widths=390,768,1440
 ```
 
 `--continue-on-fail` keeps the exit code at 0 when you only want the report. Nodes sitting on a background image or gradient are reported as `needsManualReview` rather than guessed at — a numeric ratio would be a lie there.
@@ -164,15 +165,19 @@ bml audit https://example.com --widths=390,768,1440 --json=report.json
 | `BML_CHROME` | Absolute path to the browser binary |
 | `BML_HEADFUL=1` | Show the window instead of running headless |
 | `BML_ENDPOINT` | HTTP endpoint override, default `http://127.0.0.1:12307/mcp` |
+| `BML_HOST` | Bridge bind host, default `127.0.0.1` |
+| `BML_PORT` | Bridge port, default `12307` |
 | `BML_TOKEN` | Bearer token override |
 | `BML_INSECURE=1` | Accept any token on the bridge (local debugging) |
 | `BML_E2E=1` | Include the browser integration tests in `npm test` |
+| `BML_E2E_TIMEOUT` | Hard cap in ms on `npm run test:e2e`, default `180000` |
 
 ## Development
 
 ```bash
 npm test                # unit + protocol tests
 BML_E2E=1 npm test      # also boots Chrome and drives a fixture page
+npm run test:e2e        # the same plus a hard timeout — what CI runs
 ```
 
 The unit tests cover colour maths, token handling and the JSON-RPC surface. The integration tests launch a real browser and assert the behaviour you actually depend on: refs resolve, clicks fire, `input` events reach framework listeners, screenshots are valid images, and both audits catch a page that is deliberately broken.
